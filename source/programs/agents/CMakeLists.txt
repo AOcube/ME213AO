@@ -1,0 +1,22 @@
+file(GLOB files "./*.cpp")
+foreach(file ${files} )
+    get_filename_component(bfile ${file} NAME_WE)
+    add_executable(${bfile} ${file})
+    if (UNIX)
+        target_link_libraries(${bfile} ${COSMOS_LIBS})
+        add_deployment_binary(${bfile} "bin")
+        add_deployment_source(${bfile}.cpp "src")
+    else()
+        target_link_libraries(${bfile} ${COSMOS_LIBS})
+    endif()
+    install(TARGETS ${bfile} DESTINATION bin)
+endforeach()
+
+add_executable(agent_cpu ${COSMOS_SOURCE}../../../core/programs/agents/agent_cpu.cpp)
+target_link_libraries(agent_cpu ${COSMOS_LIBS})
+
+add_executable(agent_file ${COSMOS_SOURCE}../../../core/programs/agents/agent_file.cpp)
+target_link_libraries(agent_file ${COSMOS_LIBS})
+
+add_executable(agent_exec ${COSMOS_SOURCE}../../../core/programs/agents/agent_exec.cpp)
+target_link_libraries(agent_exec ${COSMOS_LIBS})

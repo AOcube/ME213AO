@@ -1,0 +1,143 @@
+# Notes:
+# - make sure you are using a g++ cross compiler for arm, version 4.8 or above for c++11 compatibility
+# - when cross compiling make sure to configure the kit correclty
+
+#--------------------------------------------------------------------
+# user config variables
+#--------------------------------------------------------------------
+
+# define the project name
+SET(PROJECT_NAME uhabs4)
+
+IF (${CMAKE_BUILD_TYPE} MATCHES "Debug")
+    MESSAGE("Building Debug version")
+    if (${CROSS_TYPE} MATCHES "arm")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gdwarf-2")
+    endif()
+ENDIF()
+
+IF (${CMAKE_BUILD_TYPE} MATCHES "Release")
+    MESSAGE("Building Release version")
+ENDIF()
+
+# define folder where your programs are going to be installed
+#SET(INSTALL_DIR                run)
+
+#--------------------------------------------------------------------
+# automatic config section, you should not have to edit further
+#--------------------------------------------------------------------
+cmake_minimum_required(VERSION 2.9)
+project(${PROJECT_NAME})
+
+Option(BUILD_GPROF "Build for Profiling" OFF)
+
+IF (BUILD_GPROF)
+    MESSAGE("Building for gprof Profiler")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg -Wall -pedantic -std=c++11 -U__STRICT_ANSI__ -Wno-invalid-offsetof")
+ELSE ()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -std=c++11 -U__STRICT_ANSI__ -Wno-invalid-offsetof")
+ENDIF ()
+
+
+# include cmake macros here
+include(${CMAKE_SOURCE_DIR}/cmake/macros.cmake)
+
+# -----------------------------------------------
+set(COSMOS_SOURCE ${PROJECT_SOURCE_DIR}/../../..)
+message ("COSMOS_SOURCE: ${COSMOS_SOURCE}")
+
+# compile on Linux host
+IF(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Linux")
+
+    MESSAGE("Compiling on Linux")
+
+    # Linux specific code
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
+    #Check for ARM Build
+    IF (${CROSS_TYPE} MATCHES "arm")
+
+        # ARM Build Detected
+
+        # Set installation directory
+        IF("$ENV{COSMOS}" STREQUAL "")
+            SET(COSMOS "~/cosmos/arm")
+#            SET(COSMOS_SOURCE "~/cosmos/src")
+        ELSE()
+            SET(COSMOS "$ENV{COSMOS}/arm")
+#            SET(COSMOS_SOURCE "$ENV{COSMOS}/src")
+        ENDIF("$ENV{COSMOS}" STREQUAL "")
+
+        # Set Toolchain File
+        SET(CMAKE_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/build/toolchain_arm")
+
+        # Add preprocessor definition to help source files determine code to use for ARMv7 specific implementation
+        add_definitions(-DCROSS_TYPE_arm) #20150825JC: Added definition
+
+        # Add include directories for locally compiled arm openssl
+        include_directories(${PROJECT_SOURCE_DIR}/thirdparty/arm/include)
+
+    ELSE()
+
+        # Non-ARM Build Detected
+
+        IF("$ENV{COSMOS}" STREQUAL "")
+            SET(COSMOS "/usr/local/cosmos")
+        ELSE()
+            SET(COSMOS "$ENV{COSMOS}")
+        ENDIF("$ENV{COSMOS}" STREQUAL "")
+#        SET(COSMOS_SOURCE "${COSMOS}/src")
+
+    ENDIF()
+
+ENDIF(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Linux")
+
+# -----------------------------------------------
+# compile on Mac host
+IF(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+
+    MESSAGE("Compiling on Mac")
+
+    # Mac OS X specific code
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+    IF("$ENV{COSMOS}" STREQUAL "")
+        SET(COSMOS "/Applications/cosmos/macos")
+    ELSE()
+        SET(COSMOS "$ENV{COSMOS}/macos")
+    ENDIF("$ENV{COSMOS}" STREQUAL "")
+#    SET(COSMOS_SOURCE "${COSMOS}/src")
+ENDIF(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+
+
+# -----------------------------------------------
+
+set(USE_COSMOS_FROM "SOURCE")
+include(${COSMOS_SOURCE}/core/cmake/use_cosmos_from_source.cmake)
+
+
+# let's use the cosmos/core libraries
+# localzlib myjpeg
+set(COSMOS_LIBS CosmosDeviceSerial CosmosDeviceCpu CosmosDeviceDisk CosmosDeviceGeneral CosmosAgent CosmosDeviceCpu CosmosPhysics CosmosSupport CosmosMath localzlib ${WINDOWS_LIBS})
+
+message("COSMOS: ${COSMOS}")
+
+set(CMAKE_INSTALL_PREFIX "${COSMOS}/${PROJECT_NAME}" CACHE PATH "default install path" FORCE )
+message("Install: ${CMAKE_INSTALL_PREFIX}")
+
+#include_directories(${COSMOS}/include)
+include_directories(${COSMOS}/src/core/libraries)
+include_directories(${PROJECT_SOURCE_DIR}/libraries)
+include_directories(${PROJECT_SOURCE_DIR}/libraries/mavlink)
+
+MESSAGE("Include: ${COSMOS}/include")
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/libraries)
+
+# -----------------------------------------------
+# add the Programs
+add_subdirectory(${PROJECT_SOURCE_DIR}/programs)
+
+
+# 20150826JC: Added to confirm flags
+MESSAGE("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+MESSAGE("CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
